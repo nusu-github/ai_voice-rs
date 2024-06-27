@@ -1,5 +1,6 @@
 target/
 Cargo.lock
 
-bin/
-obj/
+/crates/**/bin/
+/crates/**/obj/
+/crates/**/bindings.rs
