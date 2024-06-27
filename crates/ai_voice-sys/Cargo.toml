@@ -1,0 +1,13 @@
+[package]
+name = "ai_voice-sys"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[build-dependencies]
+windows-bindgen = { workspace = true }
+
+[dependencies]
+windows = { workspace = true }
+windows-core = { workspace = true }

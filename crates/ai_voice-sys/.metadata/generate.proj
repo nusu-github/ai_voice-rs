@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.Windows.WinmdGenerator/0.61.15-preview">
+    <PropertyGroup Label="Globals">
+        <OutputWinmd>../.windows/winmd/AI.Talk.Editor.Api.winmd</OutputWinmd>
+        <WinmdVersion>255.255.255.255</WinmdVersion>
+        <AdditionalIncludes>$(CompiledHeadersDir)</AdditionalIncludes>
+    </PropertyGroup>
+    <ItemGroup>
+        <Idls Include="AI.Talk.Editor.Api.IDL" />
+        <Headers Include="$(CompiledHeadersDir)\AI.Talk.Editor.Api.h" />
+        <Partition Include="main.cpp">
+            <TraverseFiles>@(Headers)</TraverseFiles>
+            <Namespace>AI.Talk.Editor.Api</Namespace>
+        </Partition>
+    </ItemGroup>
+</Project>

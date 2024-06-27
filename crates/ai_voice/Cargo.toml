@@ -1,0 +1,13 @@
+[package]
+name = "ai_voice"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+windows = { workspace = true }
+windows-core = { workspace = true }
+
+ai_voice-sys = { path = "../ai_voice-sys" }

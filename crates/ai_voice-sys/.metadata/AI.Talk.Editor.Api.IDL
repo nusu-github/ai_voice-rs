@@ -1,0 +1,138 @@
+import "objidl.idl";
+import "oaidl.idl";
+import "propidl.idl";
+
+typedef [uuid(BB67718C-E0AE-3897-B427-2061907B64E8), version(1.0)    ,
+  custom(0F21F359-AB84-41E8-9A78-36D110E6D2F9, "AI.Talk.Editor.Api.HostStatus")
+]
+enum {
+    HostStatus_NotRunning = 0,
+    HostStatus_NotConnected = 1,
+    HostStatus_Idle = 2,
+    HostStatus_Busy = 3
+} HostStatus;
+
+typedef [uuid(CD934022-DB0E-30C7-BC67-26CF7D5287FF), version(1.0)    ,
+  custom(0F21F359-AB84-41E8-9A78-36D110E6D2F9, "AI.Talk.Editor.Api.TextEditMode")
+]
+enum {
+    TextEditMode_Text = 0,
+    TextEditMode_List = 1
+} TextEditMode;
+
+[
+  odl,
+  uuid(674805D6-19FE-4A75-86AF-763F1907BC47),
+  version(1.0),
+  dual,
+  oleautomation,
+  custom(0F21F359-AB84-41E8-9A78-36D110E6D2F9, "AI.Talk.Editor.Api.ITtsControl")
+]
+interface ITtsControl : IDispatch {
+    [id(0x60020000)]
+    HRESULT Initialize([in] BSTR serviceName);
+    [id(0x60020001), propget]
+    HRESULT IsInitialized([out, retval] VARIANT_BOOL* pRetVal);
+    [id(0x60020002)]
+    HRESULT GetAvailableHostNames([out, retval] SAFEARRAY(BSTR)* pRetVal);
+    [id(0x60020003)]
+    HRESULT StartHost();
+    [id(0x60020004)]
+    HRESULT TerminateHost();
+    [id(0x60020005)]
+    HRESULT Connect();
+    [id(0x60020006)]
+    HRESULT Disconnect();
+    [id(0x60020007), propget]
+    HRESULT Version([out, retval] BSTR* pRetVal);
+    [id(0x60020008), propget]
+    HRESULT Status([out, retval] HostStatus* pRetVal);
+    [id(0x60020009), propget]
+    HRESULT MasterControl([out, retval] BSTR* pRetVal);
+    [id(0x60020009), propput]
+    HRESULT MasterControl([in] BSTR pRetVal);
+    [id(0x6002000b), propget]
+    HRESULT Text([out, retval] BSTR* pRetVal);
+    [id(0x6002000b), propput]
+    HRESULT Text([in] BSTR pRetVal);
+    [id(0x6002000d), propget]
+    HRESULT TextSelectionStart([out, retval] long* pRetVal);
+    [id(0x6002000d), propput]
+    HRESULT TextSelectionStart([in] long pRetVal);
+    [id(0x6002000f), propget]
+    HRESULT TextSelectionLength([out, retval] long* pRetVal);
+    [id(0x6002000f), propput]
+    HRESULT TextSelectionLength([in] long pRetVal);
+    [id(0x60020011), propget]
+    HRESULT TextEditMode([out, retval] TextEditMode* pRetVal);
+    [id(0x60020011), propput]
+    HRESULT TextEditMode([in] TextEditMode pRetVal);
+    [id(0x60020013)]
+    HRESULT Play();
+    [id(0x60020014)]
+    HRESULT Stop();
+    [id(0x60020015)]
+    HRESULT SaveAudioToFile([in] BSTR path);
+    [id(0x60020016)]
+    HRESULT GetPlayTime([out, retval] __int64* pRetVal);
+    [id(0x60020017)]
+    HRESULT GetListCount([out, retval] long* pRetVal);
+    [id(0x60020018)]
+    HRESULT GetListSelectionIndices([out, retval] SAFEARRAY(long)* pRetVal);
+    [id(0x60020019)]
+    HRESULT GetListSelectionCount([out, retval] long* pRetVal);
+    [id(0x6002001a)]
+    HRESULT SetListSelectionIndex([in] long index);
+    [id(0x6002001b)]
+    HRESULT SetListSelectionIndices([in] SAFEARRAY(long) indices);
+    [id(0x6002001c)]
+    HRESULT SetListSelectionRange(
+                    [in] long startIndex,
+                    [in] long length);
+    [id(0x6002001d)]
+    HRESULT AddListItem(
+                    [in] BSTR voicePresetName,
+                    [in] BSTR Text);
+    [id(0x6002001e)]
+    HRESULT InsertListItem(
+                    [in] BSTR voicePresetName,
+                    [in] BSTR Text);
+    [id(0x6002001f)]
+    HRESULT RemoveListItem();
+    [id(0x60020020)]
+    HRESULT ClearListItems();
+    [id(0x60020021)]
+    HRESULT GetListVoicePreset([out, retval] BSTR* pRetVal);
+    [id(0x60020022)]
+    HRESULT SetListVoicePreset([in] BSTR voicePresetName);
+    [id(0x60020023)]
+    HRESULT GetListSentence([out, retval] BSTR* pRetVal);
+    [id(0x60020024)]
+    HRESULT SetListSentence(
+                    [in] BSTR sentence,
+                    [in] VARIANT_BOOL synthesize);
+    [id(0x60020025), propget]
+    HRESULT VoiceNames([out, retval] SAFEARRAY(BSTR)* pRetVal);
+    [id(0x60020026), propget]
+    HRESULT VoicePresetNames([out, retval] SAFEARRAY(BSTR)* pRetVal);
+    [id(0x60020027), propget]
+    HRESULT CurrentVoicePresetName([out, retval] BSTR* pRetVal);
+    [id(0x60020027), propput]
+    HRESULT CurrentVoicePresetName([in] BSTR pRetVal);
+    [id(0x60020029)]
+    HRESULT GetVoicePreset(
+                    [in] BSTR presetName,
+                    [out, retval] BSTR* pRetVal);
+    [id(0x6002002a)]
+    HRESULT SetVoicePreset([in] BSTR json);
+    [id(0x6002002b)]
+    HRESULT AddVoicePreset([in] BSTR json);
+    [id(0x6002002c)]
+    HRESULT ReloadVoicePresets();
+    [id(0x6002002d)]
+    HRESULT ReloadPhraseDictionary();
+    [id(0x6002002e)]
+    HRESULT ReloadWordDictionary();
+    [id(0x6002002f)]
+    HRESULT ReloadSymbolDictionary();
+};
