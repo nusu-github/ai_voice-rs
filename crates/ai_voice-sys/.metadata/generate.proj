@@ -4,13 +4,15 @@
         <OutputWinmd>../.windows/winmd/AI.Talk.Editor.Api.winmd</OutputWinmd>
         <WinmdVersion>255.255.255.255</WinmdVersion>
         <AdditionalIncludes>$(CompiledHeadersDir)</AdditionalIncludes>
+        <GenerateAssemblyVersionInfo>false</GenerateAssemblyVersionInfo>
     </PropertyGroup>
     <ItemGroup>
-        <Idls Include="AI.Talk.Editor.Api.IDL" />
-        <Headers Include="$(CompiledHeadersDir)\AI.Talk.Editor.Api.h" />
+        <Idls Include="AI.Talk.Editor.Api.IDL"/>
+        <Headers Include="$(CompiledHeadersDir)\AI.Talk.Editor.Api.h"/>
         <Partition Include="main.cpp">
             <TraverseFiles>@(Headers)</TraverseFiles>
             <Namespace>AI.Talk.Editor.Api</Namespace>
+            <ExcludeFromCrossarch>true</ExcludeFromCrossarch>
         </Partition>
     </ItemGroup>
 </Project>

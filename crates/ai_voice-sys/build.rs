@@ -11,6 +11,8 @@ fn main() {
         "AI.Talk.Editor.Api",
         "--config",
         "implement",
+        "--config",
+        "vtbl",
     ])
     .unwrap();
 }

@@ -1,14 +1,13 @@
-use std::cmp::PartialEq;
-use std::ffi::c_void;
-use std::sync::Arc;
+use std::{cmp::PartialEq, ffi::c_void, sync::Arc};
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use windows::{
     core::BSTR,
     Win32::System::{Com::*, Ole::*, Variant::*},
 };
 
-use ai_voice_sys::{ITtsControl, CLSID_TTS_CONTROL};
+use ai_voice_sys::{ITtsControl, TtsControl};
 
 #[derive(Debug, PartialEq)]
 pub enum HostStatus {
@@ -22,6 +21,18 @@ pub enum HostStatus {
 pub enum TextEditMode {
     List,
     Text,
+}
+
+#[allow(non_snake_case)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct MasterControl {
+    Volume: f32,
+    Speed: f32,
+    Pitch: f32,
+    PitchRange: f32,
+    MiddlePause: u16,
+    LongPause: u16,
+    SentencePause: u16,
 }
 
 #[derive(Clone)]
@@ -42,8 +53,7 @@ impl AiVoice {
         unsafe {
             CoInitializeEx(None, COINIT_MULTITHREADED).ok()?;
 
-            let control: ITtsControl =
-                CoCreateInstance(&CLSID_TTS_CONTROL, None, CLSCTX_INPROC_SERVER)?;
+            let control: ITtsControl = CoCreateInstance(&TtsControl, None, CLSCTX_INPROC_SERVER)?;
 
             let mut host_name = BSTR::default();
             SafeArrayGetElement(
@@ -66,21 +76,8 @@ impl AiVoice {
             .map(|x| x.as_bool())
     }
 
-    pub fn start_host(&self, wait: bool) -> Result<()> {
-        if wait {
-            unsafe { self.control.StartHost() }?;
-
-            let mut status = self.status()?;
-            while status != HostStatus::Idle && status != HostStatus::NotConnected {
-                std::thread::sleep(std::time::Duration::from_millis(100));
-
-                status = self.status()?
-            }
-
-            Ok(())
-        } else {
-            unsafe { self.control.StartHost() }.map_err(|err| err.into())
-        }
+    pub fn start_host(&self) -> Result<()> {
+        unsafe { self.control.StartHost() }.map_err(|err| err.into())
     }
 
     pub fn terminate_host(&self) -> Result<()> {
@@ -113,10 +110,25 @@ impl AiVoice {
         }
     }
 
-    pub fn master_control(&self) -> Result<String> {
-        unsafe { self.control.MasterControl() }
+    pub fn master_control(&self) -> Result<MasterControl> {
+        let master_control: BSTR = unsafe { self.control.MasterControl() }?;
+        serde_json::from_str(master_control.to_string().as_str()).map_err(|err| err.into())
+    }
+
+    pub fn set_master_control(&self, master_control: &MasterControl) -> Result<()> {
+        let master_control = MasterControl {
+            Volume: master_control.Volume.clamp(0.0, 5.0),
+            Speed: master_control.Speed.clamp(0.0, 4.0),
+            Pitch: master_control.Pitch.clamp(0.0, 2.0),
+            PitchRange: master_control.PitchRange.clamp(0.0, 2.0),
+            MiddlePause: master_control.MiddlePause.clamp(0, 500),
+            LongPause: master_control.LongPause.clamp(0, 2000),
+            SentencePause: master_control.SentencePause.clamp(0, 10000),
+        };
+
+        let master_control = serde_json::to_string(&master_control)?;
+        unsafe { self.control.SetMasterControl(&BSTR::from(master_control)) }
             .map_err(|err| err.into())
-            .map(|x| x.to_string())
     }
 
     pub fn text(&self) -> Result<String> {
@@ -326,10 +338,12 @@ impl AiVoice {
             .map(|x| x.to_string())
     }
 
-    pub fn set_current_voice_preset_name(&self, preset_name: &str) -> Result<String> {
-        unsafe { self.control.SetCurrentVoicePresetName(preset_name) }
-            .map_err(|err| err.into())
-            .map(|x| x.to_string())
+    pub fn set_current_voice_preset_name(&self, preset_name: &str) -> Result<()> {
+        unsafe {
+            self.control
+                .SetCurrentVoicePresetName(&BSTR::from(preset_name))
+        }
+        .map_err(|err| err.into())
     }
 
     pub fn voice_preset(&self, preset_name: &str) -> Result<String> {
