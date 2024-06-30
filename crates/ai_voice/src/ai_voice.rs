@@ -259,15 +259,17 @@ impl AiVoice {
         }];
         let psa = unsafe { SafeArrayCreate(VT_BSTR, 0, rgsabound.as_ptr()) };
 
-        for (i, elem) in indices.iter().enumerate() {
-            unsafe {
+        indices
+            .iter()
+            .enumerate()
+            .map(|(i, elem)| unsafe {
                 SafeArrayPutElement(
                     psa,
                     &(i as i32),
                     std::mem::transmute_copy(&BSTR::from(elem)),
                 )
-            }?;
-        }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
 
         Ok(unsafe { self.control.SetListSelectionIndices(psa) }?)
     }
