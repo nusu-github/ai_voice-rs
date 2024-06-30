@@ -1,6 +1,6 @@
 use std::{cmp::PartialEq, ffi::c_void, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use windows::{
     core::BSTR,
@@ -23,16 +23,51 @@ pub enum TextEditMode {
     Text,
 }
 
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct MasterControl {
-    Volume: f32,
-    Speed: f32,
-    Pitch: f32,
-    PitchRange: f32,
-    MiddlePause: u16,
-    LongPause: u16,
-    SentencePause: u16,
+    pub volume: f32,
+    pub speed: f32,
+    pub pitch: f32,
+    pub pitch_range: f32,
+    pub middle_pause: u16,
+    pub long_pause: u16,
+    pub sentence_pause: u16,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct VoicePreset {
+    pub preset_name: String,
+    pub voice_name: String,
+    pub volume: f64,
+    pub speed: f64,
+    pub pitch: f64,
+    pub pitch_range: f64,
+    pub middle_pause: i64,
+    pub long_pause: i64,
+    pub styles: Vec<Style>,
+    pub merged_voice_container: MergedVoiceContainer,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct MergedVoiceContainer {
+    pub base_pitch_voice_name: String,
+    pub merged_voices: Vec<MergedVoice>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct MergedVoice {
+    pub voice_name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct Style {
+    pub name: String,
+    pub value: f64,
 }
 
 #[derive(Clone)]
@@ -71,35 +106,31 @@ impl AiVoice {
     }
 
     pub fn is_initialized(&self) -> Result<bool> {
-        unsafe { self.control.IsInitialized() }
-            .map_err(|err| err.into())
-            .map(|x| x.as_bool())
+        Ok(unsafe { self.control.IsInitialized() }?.as_bool())
     }
 
     pub fn start_host(&self) -> Result<()> {
-        unsafe { self.control.StartHost() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.StartHost() }?)
     }
 
     pub fn terminate_host(&self) -> Result<()> {
-        unsafe { self.control.TerminateHost() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.TerminateHost() }?)
     }
 
     pub fn connect(&self) -> Result<()> {
-        unsafe { self.control.Connect() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.Connect() }?)
     }
 
     pub fn disconnect(&self) -> Result<()> {
-        unsafe { self.control.Disconnect() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.Disconnect() }?)
     }
 
     pub fn version(&self) -> Result<String> {
-        unsafe { self.control.Version() }
-            .map_err(|err| err.into())
-            .map(|x| x.to_string())
+        Ok(unsafe { self.control.Version() }?.to_string())
     }
 
     pub fn status(&self) -> Result<HostStatus> {
-        let host_status: ai_voice_sys::HostStatus = unsafe { self.control.Status() }?;
+        let host_status = unsafe { self.control.Status() }?;
 
         match host_status {
             ai_voice_sys::HostStatus(0) => Ok(HostStatus::NotRunning),
@@ -111,54 +142,51 @@ impl AiVoice {
     }
 
     pub fn master_control(&self) -> Result<MasterControl> {
-        let master_control: BSTR = unsafe { self.control.MasterControl() }?;
-        serde_json::from_str(master_control.to_string().as_str()).map_err(|err| err.into())
+        let master_control = unsafe { self.control.MasterControl() }?.to_string();
+        serde_json::from_str(&master_control).with_context(|| "Failed to parse master control")
     }
 
     pub fn set_master_control(&self, master_control: &MasterControl) -> Result<()> {
         let master_control = MasterControl {
-            Volume: master_control.Volume.clamp(0.0, 5.0),
-            Speed: master_control.Speed.clamp(0.0, 4.0),
-            Pitch: master_control.Pitch.clamp(0.0, 2.0),
-            PitchRange: master_control.PitchRange.clamp(0.0, 2.0),
-            MiddlePause: master_control.MiddlePause.clamp(0, 500),
-            LongPause: master_control.LongPause.clamp(0, 2000),
-            SentencePause: master_control.SentencePause.clamp(0, 10000),
+            volume: master_control.volume.clamp(0.0, 5.0),
+            speed: master_control.speed.clamp(0.0, 4.0),
+            pitch: master_control.pitch.clamp(0.0, 2.0),
+            pitch_range: master_control.pitch_range.clamp(0.0, 2.0),
+            middle_pause: master_control.middle_pause.clamp(0, 500),
+            long_pause: master_control.long_pause.clamp(0, 2000),
+            sentence_pause: master_control.sentence_pause.clamp(0, 10000),
         };
 
         let master_control = serde_json::to_string(&master_control)?;
-        unsafe { self.control.SetMasterControl(&BSTR::from(master_control)) }
-            .map_err(|err| err.into())
+        Ok(unsafe { self.control.SetMasterControl(&BSTR::from(master_control)) }?)
     }
 
     pub fn text(&self) -> Result<String> {
-        unsafe { self.control.Text() }
-            .map_err(|err| err.into())
-            .map(|x| x.to_string())
+        Ok(unsafe { self.control.Text() }?.to_string())
     }
 
     pub fn set_text(&self, value: &str) -> Result<()> {
-        unsafe { self.control.SetText(&BSTR::from(value)) }.map_err(|err| err.into())
+        Ok(unsafe { self.control.SetText(&BSTR::from(value)) }?)
     }
 
     pub fn text_selection_start(&self) -> Result<i32> {
-        unsafe { self.control.TextSelectionStart() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.TextSelectionStart() }?)
     }
 
     pub fn set_text_selection_start(&self, value: i32) -> Result<()> {
-        unsafe { self.control.SetTextSelectionStart(value) }.map_err(|err| err.into())
+        Ok(unsafe { self.control.SetTextSelectionStart(value) }?)
     }
 
     pub fn text_selection_length(&self) -> Result<i32> {
-        unsafe { self.control.TextSelectionLength() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.TextSelectionLength() }?)
     }
 
     pub fn set_text_selection_length(&self, value: i32) -> Result<()> {
-        unsafe { self.control.SetTextSelectionLength(value) }.map_err(|err| err.into())
+        Ok(unsafe { self.control.SetTextSelectionLength(value) }?)
     }
 
     pub fn text_edit_mode(&self) -> Result<TextEditMode> {
-        let text_edit_mode: ai_voice_sys::TextEditMode = unsafe { self.control.TextEditMode() }?;
+        let text_edit_mode = unsafe { self.control.TextEditMode() }?;
 
         match text_edit_mode {
             ai_voice_sys::TextEditMode(0) => Ok(TextEditMode::Text),
@@ -173,27 +201,27 @@ impl AiVoice {
             TextEditMode::List => ai_voice_sys::TextEditMode(1),
         };
 
-        unsafe { self.control.SetTextEditMode(text_edit_mode) }.map_err(|err| err.into())
+        Ok(unsafe { self.control.SetTextEditMode(text_edit_mode) }?)
     }
 
     pub fn play(&self) -> Result<()> {
-        unsafe { self.control.Play() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.Play() }?)
     }
 
     pub fn stop(&self) -> Result<()> {
-        unsafe { self.control.Stop() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.Stop() }?)
     }
 
     pub fn save_audio_to_file(&self, path: &str) -> Result<()> {
-        unsafe { self.control.SaveAudioToFile(&BSTR::from(path)) }.map_err(|err| err.into())
+        Ok(unsafe { self.control.SaveAudioToFile(&BSTR::from(path)) }?)
     }
 
     pub fn play_time(&self) -> Result<i64> {
-        unsafe { self.control.GetPlayTime() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.GetPlayTime() }?)
     }
 
     pub fn list_count(&self) -> Result<i32> {
-        unsafe { self.control.GetListCount() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.GetListCount() }?)
     }
 
     pub fn list_selection_indices(&self) -> Result<Vec<i32>> {
@@ -217,11 +245,11 @@ impl AiVoice {
     }
 
     pub fn list_selection_count(&self) -> Result<i32> {
-        unsafe { self.control.GetListSelectionCount() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.GetListSelectionCount() }?)
     }
 
     pub fn set_list_selection_index(&self, index: i32) -> Result<()> {
-        unsafe { self.control.SetListSelectionIndex(index) }.map_err(|err| err.into())
+        Ok(unsafe { self.control.SetListSelectionIndex(index) }?)
     }
 
     pub fn set_list_selection_indices(&self, indices: Vec<String>) -> Result<()> {
@@ -241,55 +269,48 @@ impl AiVoice {
             }?;
         }
 
-        unsafe { self.control.SetListSelectionIndices(psa) }.map_err(|err| err.into())
+        Ok(unsafe { self.control.SetListSelectionIndices(psa) }?)
     }
 
     pub fn set_list_selection_range(&self, startindex: i32, length: i32) -> Result<()> {
-        unsafe { self.control.SetListSelectionRange(startindex, length) }.map_err(|err| err.into())
+        Ok(unsafe { self.control.SetListSelectionRange(startindex, length) }?)
     }
 
     pub fn add_list_item(&self, voice_preset_name: &str, text: &str) -> Result<()> {
-        unsafe {
+        Ok(unsafe {
             self.control
                 .AddListItem(&BSTR::from(voice_preset_name), &BSTR::from(text))
-        }
-        .map_err(|err| err.into())
+        }?)
     }
 
     pub fn insert_list_item(&self, voice_preset_name: &str, text: &str) -> Result<()> {
-        unsafe {
+        Ok(unsafe {
             self.control
                 .InsertListItem(&BSTR::from(voice_preset_name), &BSTR::from(text))
-        }
-        .map_err(|err| err.into())
+        }?)
     }
 
     pub fn remove_list_item(&self) -> Result<()> {
-        unsafe { self.control.RemoveListItem() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.RemoveListItem() }?)
     }
 
     pub fn clear_list_items(&self) -> Result<()> {
-        unsafe { self.control.ClearListItems() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.ClearListItems() }?)
     }
 
     pub fn list_voice_preset(&self) -> Result<String> {
-        unsafe { self.control.GetListVoicePreset() }
-            .map_err(|err| err.into())
-            .map(|x| x.to_string())
+        Ok(unsafe { self.control.GetListVoicePreset() }?.to_string())
     }
 
     pub fn set_list_voice_preset(&self, voice_preset_name: &str) -> Result<()> {
-        unsafe {
+        Ok(unsafe {
             self.control
                 .SetListVoicePreset(&BSTR::from(voice_preset_name))
-        }
-        .map_err(|err| err.into())
+        }?)
     }
 
     pub fn list_sentence(&self) -> Result<String> {
-        unsafe { self.control.GetListSentence() }
-            .map_err(|err| err.into())
-            .map(|x| x.to_string())
+        Ok(unsafe { self.control.GetListSentence() }?.to_string())
     }
 
     pub fn voice_names(&self) -> Result<Vec<String>> {
@@ -333,46 +354,45 @@ impl AiVoice {
     }
 
     pub fn current_voice_preset_name(&self) -> Result<String> {
-        unsafe { self.control.CurrentVoicePresetName() }
-            .map_err(|err| err.into())
-            .map(|x| x.to_string())
+        Ok(unsafe { self.control.CurrentVoicePresetName() }?.to_string())
     }
 
     pub fn set_current_voice_preset_name(&self, preset_name: &str) -> Result<()> {
-        unsafe {
+        Ok(unsafe {
             self.control
                 .SetCurrentVoicePresetName(&BSTR::from(preset_name))
-        }
-        .map_err(|err| err.into())
+        }?)
     }
 
-    pub fn voice_preset(&self, preset_name: &str) -> Result<String> {
-        unsafe { self.control.GetVoicePreset(&BSTR::from(preset_name)) }
-            .map_err(|err| err.into())
-            .map(|x| x.to_string())
+    pub fn voice_preset(&self, preset_name: &str) -> Result<VoicePreset> {
+        let voice_preset =
+            unsafe { self.control.GetVoicePreset(&BSTR::from(preset_name)) }?.to_string();
+        serde_json::from_str(&voice_preset).with_context(|| "Failed to parse voice preset")
     }
 
-    pub fn set_voice_preset(&self, json: &str) -> Result<()> {
-        unsafe { self.control.SetVoicePreset(&BSTR::from(json)) }.map_err(|err| err.into())
+    pub fn set_voice_preset(&self, voice_preset: &VoicePreset) -> Result<()> {
+        let json = serde_json::to_string(voice_preset)?;
+        Ok(unsafe { self.control.SetVoicePreset(&BSTR::from(json)) }?)
     }
 
-    pub fn add_voice_preset(&self, json: &str) -> Result<()> {
-        unsafe { self.control.AddVoicePreset(&BSTR::from(json)) }.map_err(|err| err.into())
+    pub fn add_voice_preset(&self, voice_preset: &VoicePreset) -> Result<()> {
+        let json = serde_json::to_string(voice_preset)?;
+        Ok(unsafe { self.control.AddVoicePreset(&BSTR::from(json)) }?)
     }
 
     pub fn reload_voice_presets(&self) -> Result<()> {
-        unsafe { self.control.ReloadVoicePresets() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.ReloadVoicePresets() }?)
     }
 
     pub fn reload_phrase_dictionary(&self) -> Result<()> {
-        unsafe { self.control.ReloadPhraseDictionary() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.ReloadPhraseDictionary() }?)
     }
 
     pub fn reload_word_dictionary(&self) -> Result<()> {
-        unsafe { self.control.ReloadWordDictionary() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.ReloadWordDictionary() }?)
     }
 
     pub fn reload_symbol_dictionary(&self) -> Result<()> {
-        unsafe { self.control.ReloadSymbolDictionary() }.map_err(|err| err.into())
+        Ok(unsafe { self.control.ReloadSymbolDictionary() }?)
     }
 }
