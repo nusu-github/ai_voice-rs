@@ -1,4 +1,4 @@
-use ai_voice::*;
+pub use ai_voice::*;
 
 mod ai_voice;
 
