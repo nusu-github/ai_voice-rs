@@ -138,7 +138,7 @@ impl AiVoice {
 
             control.Initialize(&host_name)?;
 
-            Ok(AiVoice {
+            Ok(Self {
                 control: Arc::new(control),
             })
         }
@@ -590,18 +590,19 @@ impl AiVoice {
         let lob = unsafe { SafeArrayGetLBound(preset_names, 1) }?;
         let upb = unsafe { SafeArrayGetUBound(preset_names, 1) }?;
 
-        let mut preset_names_vec = Vec::with_capacity((lob.abs() + upb.abs() + 1) as usize);
-        for i in lob..upb {
-            let data = unsafe {
+        (lob..=upb)
+            .map(|i| {
                 let mut result__ = BSTR::default();
-                SafeArrayGetElement(preset_names, &i, &mut result__ as *mut BSTR as *mut _)?;
-                result__
-            };
-
-            preset_names_vec.push(data.to_string());
-        }
-
-        Ok(preset_names_vec)
+                unsafe {
+                    SafeArrayGetElement(
+                        preset_names,
+                        &i,
+                        &mut result__ as *mut BSTR as *mut c_void,
+                    )?;
+                }
+                Ok(result__.to_string())
+            })
+            .collect()
     }
 
     /// 現在のボイスプリセット名を取得します。
